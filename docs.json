@@ -1,4 +1,5 @@
 {
+  "$schema": "https://mintlify.com/docs.json",
   "name": "Thinkbase",
   "theme": "mint",
   "logo": {
@@ -9,31 +10,35 @@
   "colors": {
     "primary": "#0A0B0D",
     "light": "#F5F5F5",
-    "dark": "#0A0B0D",
-    "anchors": {
-      "from": "#0A0B0D",
-      "to": "#3B82F6"
-    }
+    "dark": "#0A0B0D"
   },
-  "topbarLinks": [
-    {
-      "name": "Dashboard",
-      "url": "https://trythinkbase.com"
+  "navbar": {
+    "links": [
+      {
+        "label": "Dashboard",
+        "href": "https://trythinkbase.com"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get API Key",
+      "href": "https://trythinkbase.com/partners"
     }
-  ],
-  "topbarCtaButton": {
-    "name": "Get API Key",
-    "url": "https://trythinkbase.com/partners"
   },
   "navigation": {
     "tabs": [
       {
         "tab": "Guides",
-        "pages": [
-          "guides/introduction",
-          "guides/authentication",
-          "guides/rate-limits",
-          "guides/tiers"
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "guides/introduction",
+              "guides/authentication",
+              "guides/rate-limits",
+              "guides/tiers"
+            ]
+          }
         ]
       },
       {
@@ -43,17 +48,17 @@
     ]
   },
   "api": {
-    "baseUrl": "https://api.trythinkbase.com/v1",
-    "auth": {
-      "method": "key",
-      "name": "X-API-Key"
-    },
     "playground": {
-      "mode": "simple"
+      "display": "simple"
     }
   },
-  "footerSocials": {
-    "x": "https://x.com/trythinkbase",
-    "website": "https://trythinkbase.com"
+  "footer": {
+    "socials": {
+      "x": "https://x.com/trythinkbase",
+      "instagram": "https://www.instagram.com/trythinkbase",
+      "tiktok": "https://www.tiktok.com/@trythinkbase",
+      "linkedin": "https://www.linkedin.com/company/trythinkbase/",
+      "website": "https://trythinkbase.com"
+    }
   }
 }
