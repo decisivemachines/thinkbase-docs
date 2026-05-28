@@ -1,0 +1,601 @@
+openapi: "3.1.0"
+info:
+  title: Thinkbase Data API
+  version: "1.0.0"
+  description: |
+    Structured opinion data, arguments, and voting percentages via REST API.
+
+    Thinkbase captures **what** people think (voting percentages) and **why** they think it (structured arguments tied to positions). This data is available across 14 categories including Politics, Ethics, Technology, and more.
+
+    ## Authentication
+    All endpoints require an API key passed in the `X-API-Key` header.
+
+    ## Tiers
+    - **Free** (1K calls/day): Debates, categories, trending, live percentages
+    - **Builder** (10K calls/day): + Arguments, search, historical snapshots
+    - **Pro** (100K calls/day): Higher rate limits for production use
+    - **Enterprise** (1M calls/day): Custom limits, data licensing
+
+servers:
+  - url: https://api.trythinkbase.com/v1
+    description: Production
+
+security:
+  - apiKey: []
+
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Your Thinkbase API key. Get one at https://trythinkbase.com/partners.
+      x-default: "your-api-key-here"
+
+  schemas:
+    Option:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+          example: "Yes"
+        emoji:
+          type: string
+          nullable: true
+          example: "✅"
+        vote_percentage:
+          type: number
+          format: float
+          description: Percentage of predictors who chose this option (0-100).
+          example: 62.5
+        predictor_count:
+          type: integer
+          description: Number of people who predicted this option.
+          example: 89
+        display_order:
+          type: integer
+          example: 0
+      required: [id, text, vote_percentage, predictor_count, display_order]
+
+    Debate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: "Should the United States ban TikTok over national security concerns?"
+        slug:
+          type: string
+          example: "should-the-us-ban-tiktok"
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+          example: "Politics"
+        category_slug:
+          type: string
+          nullable: true
+          example: "politics"
+        status:
+          type: string
+          enum: [open, closing_soon, closed, resolved]
+          example: "open"
+        total_predictions:
+          type: integer
+          example: 142
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/Option"
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+      required: [id, title, slug, status, total_predictions, options, starts_at, ends_at, created_at]
+
+    Argument:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        position:
+          type: string
+          description: The answer option text this argument supports.
+          example: "Yes"
+        position_emoji:
+          type: string
+          nullable: true
+          example: "✅"
+        body:
+          type: string
+          description: The full argument text.
+          example: "The real question isn't whether to ban it — it's whether a forced divestiture achieves the same security goals without the free speech implications."
+        upvote_count:
+          type: integer
+          description: Number of upvotes this argument received.
+          example: 89
+        created_at:
+          type: string
+          format: date-time
+      required: [id, position, body, upvote_count, created_at]
+
+    Snapshot:
+      type: object
+      description: A point-in-time capture of prediction percentages for one option.
+      properties:
+        option_id:
+          type: string
+          format: uuid
+        option_text:
+          type: string
+          example: "Yes"
+        predictor_count:
+          type: integer
+          example: 89
+        prediction_percentage:
+          type: number
+          format: float
+          example: 62.5
+        captured_at:
+          type: string
+          format: date-time
+      required: [option_id, option_text, predictor_count, prediction_percentage, captured_at]
+
+    Category:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Politics"
+        slug:
+          type: string
+          example: "politics"
+        icon:
+          type: string
+          example: "🏛️"
+        debate_count:
+          type: integer
+          example: 827
+      required: [name, slug, icon, debate_count]
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 50
+        total:
+          type: integer
+          example: 1648
+        has_more:
+          type: boolean
+          example: true
+      required: [page, limit, total, has_more]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+    AuthError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Missing API key"
+        message:
+          type: string
+          example: "Include your API key in the X-API-Key header."
+        docs:
+          type: string
+          example: "https://docs.trythinkbase.com/authentication"
+
+    RateLimitError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Rate limit exceeded"
+        message:
+          type: string
+          example: "Daily limit of 10000 requests exceeded."
+        limit:
+          type: integer
+          example: 10000
+        upgrade_url:
+          type: string
+          example: "https://docs.trythinkbase.com/pricing"
+
+    TierError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Tier upgrade required"
+        message:
+          type: string
+        current_tier:
+          type: string
+          example: "free"
+        required_tier:
+          type: string
+          example: "builder"
+        upgrade_url:
+          type: string
+          example: "https://docs.trythinkbase.com/pricing"
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+      description: Page number.
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 50
+      description: Results per page. Maximum depends on your tier (free=100, builder=250, pro=500, enterprise=1000).
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid API key.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AuthError"
+    RateLimited:
+      description: Daily rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/RateLimitError"
+    TierRequired:
+      description: Tier upgrade required (Builder or higher).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/TierError"
+    NotFound:
+      description: Debate not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+tags:
+  - name: Debates
+    description: Browse and filter debates with live voting percentages.
+  - name: Arguments
+    description: Access structured arguments — the reasoning behind opinions. Requires **Builder** tier.
+  - name: History
+    description: View prediction percentage changes over time. Requires **Builder** tier.
+  - name: Categories
+    description: List debate categories.
+  - name: Trending
+    description: Get currently trending debates.
+  - name: Search
+    description: Search debates by keyword. Requires **Builder** tier.
+
+paths:
+  /debates:
+    get:
+      operationId: listDebates
+      summary: List debates
+      description: |
+        Returns a paginated list of debates with their answer options and current voting percentages.
+        Supports filtering by category and status, and sorting.
+      tags: [Debates]
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by category slug (e.g., `politics`, `ethics`, `technology`).
+          example: politics
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, closing_soon, closed, resolved]
+          description: Filter by debate status.
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [recent, popular, ending_soon]
+            default: recent
+          description: Sort order.
+      responses:
+        "200":
+          description: Paginated list of debates.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Debate"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /debates/{slug}:
+    get:
+      operationId: getDebate
+      summary: Get a debate
+      description: Returns a single debate by its URL slug, including all answer options and current percentages.
+      tags: [Debates]
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The debate's URL slug.
+          example: should-the-us-ban-tiktok
+      responses:
+        "200":
+          description: Debate detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Debate"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /debates/{slug}/arguments:
+    get:
+      operationId: listArguments
+      summary: List arguments for a debate
+      description: |
+        Returns structured arguments for a debate. Each argument is tied to a position (answer option) and includes upvote counts.
+
+        This is the core "why" data — the reasoning behind opinions.
+      tags: [Arguments]
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          example: should-the-us-ban-tiktok
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: option_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter to arguments for a specific answer option.
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [top, recent]
+            default: top
+          description: Sort by upvotes (`top`) or creation time (`recent`).
+      responses:
+        "200":
+          description: Paginated list of arguments.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Argument"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/TierRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /debates/{slug}/history:
+    get:
+      operationId: getDebateHistory
+      summary: Get prediction history
+      description: |
+        Returns prediction percentage snapshots over time for a debate.
+        Each snapshot captures the predictor count and percentage for each option at a point in time.
+        Results are in chronological order.
+      tags: [History]
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          example: should-the-us-ban-tiktok
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Start of date range (ISO 8601).
+          example: "2026-05-01T00:00:00Z"
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: End of date range (ISO 8601).
+          example: "2026-05-31T23:59:59Z"
+      responses:
+        "200":
+          description: Array of prediction snapshots (not paginated).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Snapshot"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/TierRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /categories:
+    get:
+      operationId: listCategories
+      summary: List categories
+      description: Returns all debate categories with the number of debates in each.
+      tags: [Categories]
+      responses:
+        "200":
+          description: List of categories (not paginated).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Category"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /trending:
+    get:
+      operationId: listTrending
+      summary: Get trending debates
+      description: |
+        Returns debates ranked by trending score. Only includes debates with `open` or `closing_soon` status.
+      tags: [Trending]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+          description: Number of results. Maximum depends on your tier.
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by category slug.
+      responses:
+        "200":
+          description: List of trending debates (not paginated).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Debate"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /search:
+    get:
+      operationId: searchDebates
+      summary: Search debates
+      description: |
+        Search debates by keyword. Matches against debate titles and descriptions.
+        Results are sorted by popularity (total predictions).
+      tags: [Search]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query. Special characters (commas, parentheses, dots) are stripped.
+          example: "climate change"
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by category slug.
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, closing_soon, closed, resolved]
+      responses:
+        "200":
+          description: Paginated search results.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Debate"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+        "400":
+          description: Missing required query parameter `q`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/TierRequired"
+        "429":
+          $ref: "#/components/responses/RateLimited"

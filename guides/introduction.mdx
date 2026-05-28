@@ -1,0 +1,72 @@
+---
+title: "Introduction"
+description: "Structured opinion data and the arguments behind them."
+---
+
+# Thinkbase Data API
+
+Thinkbase captures public opinion on current topics. Every prediction market tells you **what** people think. Thinkbase tells you **why**.
+
+## What you get
+
+- **Live voting percentages** on 1,600+ debates across 14 categories
+- **40,000+ structured arguments** tied to positions with upvote signals
+- **Historical snapshots** showing how opinion shifts over time
+- **Search** across debate titles and descriptions
+
+## Who uses this
+
+- **Media and newsrooms** embed live opinion data and cite real arguments
+- **AI/LLM companies** train on structured reasoning data
+- **Political campaigns and pollsters** track opinion with the reasoning behind it
+- **Academic researchers** study argumentation and persuasion at scale
+- **Content creators** find trending debates for content ideas
+
+## Quick start
+
+<Steps>
+  <Step title="Get an API key">
+    Contact us at [partners@trythinkbase.com](mailto:partners@trythinkbase.com) to get your API key.
+  </Step>
+  <Step title="Make your first request">
+    ```bash
+    curl -H "X-API-Key: YOUR_KEY" \
+      https://api.trythinkbase.com/v1/debates?limit=5
+    ```
+  </Step>
+  <Step title="Explore the data">
+    Browse [categories](/api-reference/list-categories), check [trending debates](/api-reference/list-trending), or [search](/api-reference/search-debates) for a topic.
+  </Step>
+</Steps>
+
+## Base URL
+
+All API requests go to:
+
+```
+https://api.trythinkbase.com/v1
+```
+
+## Response format
+
+Every response returns JSON. List endpoints return paginated results:
+
+```json
+{
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 1648,
+    "has_more": true
+  }
+}
+```
+
+Single-item endpoints and non-paginated lists (categories, trending, history) return the data directly:
+
+```json
+{
+  "data": { ... }
+}
+```

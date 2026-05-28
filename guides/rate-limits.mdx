@@ -1,0 +1,60 @@
+---
+title: "Rate Limits"
+description: "How rate limiting works and what headers to check."
+---
+
+# Rate Limits
+
+Every API key has a daily call limit based on its tier. The counter resets on your first request after midnight UTC.
+
+## Limits by tier
+
+| Tier | Daily limit | Max page size |
+|------|------------|---------------|
+| Free | 1,000 | 100 |
+| Builder | 10,000 | 250 |
+| Pro | 100,000 | 500 |
+| Enterprise | 1,000,000 | 1,000 |
+
+## Response headers
+
+Every authenticated response includes rate limit headers:
+
+| Header | Description |
+|--------|-------------|
+| `X-RateLimit-Limit` | Your daily limit |
+| `X-RateLimit-Remaining` | Calls remaining today |
+| `X-RateLimit-Used-Monthly` | Total calls this billing month |
+
+Example:
+
+```
+X-RateLimit-Limit: 10000
+X-RateLimit-Remaining: 9842
+X-RateLimit-Used-Monthly: 45231
+```
+
+## When you hit the limit
+
+If you exceed your daily limit, you'll receive a `429 Too Many Requests` response:
+
+```json
+{
+  "error": "Rate limit exceeded",
+  "message": "Daily limit of 10000 requests exceeded.",
+  "limit": 10000,
+  "upgrade_url": "https://docs.trythinkbase.com/pricing"
+}
+```
+
+The counter resets on your first request after midnight UTC. The `X-RateLimit-Remaining` header will show `0` until the reset.
+
+## Page size limits
+
+The `limit` query parameter (results per page) is clamped to your tier's maximum. If you request `limit=500` on a Free tier key, you'll get 100 results.
+
+## Tips
+
+- Use the `X-RateLimit-Remaining` header to pace your requests.
+- Cache responses when possible. Debate data doesn't change every second.
+- If you consistently hit your limit, consider upgrading your tier.

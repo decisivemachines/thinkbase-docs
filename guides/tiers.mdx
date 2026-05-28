@@ -1,0 +1,74 @@
+---
+title: "Pricing Tiers"
+description: "What each tier includes and costs."
+---
+
+# Pricing Tiers
+
+The Thinkbase Data API has four tiers. Higher tiers unlock more endpoints and higher rate limits.
+
+## Tier comparison
+
+| | Free | Builder | Pro | Enterprise |
+|---|---|---|---|---|
+| **Monthly cost** | $0 | $49 + usage | $299 + usage | $999 + usage |
+| **Per-call rate** | -- | $0.005 | $0.003 | $0.001 |
+| **Daily limit** | 1,000 | 10,000 | 100,000 | 1,000,000 |
+| **Max page size** | 100 | 250 | 500 | 1,000 |
+| **Debates + percentages** | Yes | Yes | Yes | Yes |
+| **Categories** | Yes | Yes | Yes | Yes |
+| **Trending** | Yes | Yes | Yes | Yes |
+| **Arguments** | -- | Yes | Yes | Yes |
+| **Search** | -- | Yes | Yes | Yes |
+| **Historical snapshots** | -- | Yes | Yes | Yes |
+| **Data licensing** | -- | -- | -- | Yes |
+| **Dedicated support** | -- | -- | -- | Yes |
+
+## What each tier unlocks
+
+### Free
+
+Live debate data. Browse debates, see current voting percentages, filter by category, and see what's trending. Good for prototyping and evaluation.
+
+**Endpoints:** `/debates`, `/debates/:slug`, `/categories`, `/trending`
+
+### Builder
+
+The "why" behind opinions. Access structured arguments tied to positions, search across debates, and pull historical snapshots to see how opinion shifts over time.
+
+**Additional endpoints:** `/debates/:slug/arguments`, `/debates/:slug/history`, `/search`
+
+### Pro
+
+High-volume access with higher rate limits and page sizes for production integrations.
+
+### Enterprise
+
+Custom rate limits, data licensing agreements (including AI/ML training rights), and dedicated support.
+
+## Billing
+
+Paid tiers are billed monthly with two components:
+
+1. **Base fee** -- flat monthly charge ($49 / $299 / $999)
+2. **Usage fee** -- per-API-call charge based on your tier's rate
+
+Invoices are sent with 30-day payment terms. You are not charged upfront.
+
+## Tier access errors
+
+If you call an endpoint that requires a higher tier, you'll get a `403 Forbidden`:
+
+```json
+{
+  "error": "Tier upgrade required",
+  "message": "This endpoint requires the \"builder\" tier or higher. Your current tier is \"free\".",
+  "current_tier": "free",
+  "required_tier": "builder",
+  "upgrade_url": "https://docs.trythinkbase.com/pricing"
+}
+```
+
+## Getting started
+
+Contact [partners@trythinkbase.com](mailto:partners@trythinkbase.com) to get an API key or upgrade your tier.

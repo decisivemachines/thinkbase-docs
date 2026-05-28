@@ -1,0 +1,62 @@
+---
+title: "Authentication"
+description: "How to authenticate your API requests."
+---
+
+# Authentication
+
+All API endpoints require an API key. Pass it in the `X-API-Key` header with every request.
+
+## Getting a key
+
+Contact [partners@trythinkbase.com](mailto:partners@trythinkbase.com) to get your API key. Keys are generated per-partner and tied to a billing tier.
+
+## Using your key
+
+Include the `X-API-Key` header in every request:
+
+```bash
+curl -H "X-API-Key: tb_live_abc123def456..." \
+  https://api.trythinkbase.com/v1/debates
+```
+
+## Key format
+
+Keys follow the format `tb_live_` followed by 32 random hex characters:
+
+```
+tb_live_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4
+```
+
+Your key is shown **once** when created. Store it securely. We store only a SHA-256 hash of your key and cannot recover it.
+
+## Error responses
+
+### Missing key
+
+```json
+{
+  "error": "Missing API key",
+  "message": "Include your API key in the X-API-Key header.",
+  "docs": "https://docs.trythinkbase.com/authentication"
+}
+```
+
+**Status:** `401 Unauthorized`
+
+### Invalid or revoked key
+
+```json
+{
+  "error": "Invalid API key",
+  "message": "The provided API key is not valid or has been revoked."
+}
+```
+
+**Status:** `401 Unauthorized`
+
+## Security
+
+- Keys are hashed with SHA-256 before storage. We never store or log raw keys.
+- All API traffic must use HTTPS.
+- If you suspect your key is compromised, contact us immediately to revoke it and issue a new one.

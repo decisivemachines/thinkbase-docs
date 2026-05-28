@@ -1,0 +1,54 @@
+{
+  "name": "Thinkbase",
+  "theme": "mint",
+  "colors": {
+    "primary": "#0A0B0D",
+    "light": "#F5F5F5",
+    "dark": "#0A0B0D",
+    "anchors": {
+      "from": "#0A0B0D",
+      "to": "#3B82F6"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Dashboard",
+      "url": "https://trythinkbase.com"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get API Key",
+    "url": "https://trythinkbase.com/partners"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "pages": [
+          "guides/introduction",
+          "guides/authentication",
+          "guides/rate-limits",
+          "guides/tiers"
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "openapi": "openapi.yaml"
+      }
+    ]
+  },
+  "api": {
+    "baseUrl": "https://api.trythinkbase.com/v1",
+    "auth": {
+      "method": "key",
+      "name": "X-API-Key"
+    },
+    "playground": {
+      "mode": "simple"
+    }
+  },
+  "footerSocials": {
+    "x": "https://x.com/trythinkbase",
+    "website": "https://trythinkbase.com"
+  }
+}
