@@ -11,10 +11,12 @@ info:
     All endpoints require an API key passed in the `X-API-Key` header.
 
     ## Tiers
-    - **Free** (1K calls/day): Debates, categories, trending, live percentages
-    - **Builder** (10K calls/day): + Arguments, search, historical snapshots
-    - **Pro** (100K calls/day): Higher rate limits for production use
-    - **Enterprise** (1M calls/day): Custom limits, data licensing
+    Usage-based pricing at $0.003/call with no base fees. Tiers auto-graduate based on lifetime spend.
+    - **Free** ($0 spent, 100 calls/day): Debates, categories, trending, live percentages
+    - **Tier 1** ($5 spent, 1K calls/day): + Arguments, search, historical snapshots
+    - **Tier 2** ($50 spent, 10K calls/day): Higher rate limits
+    - **Tier 3** ($250 spent, 100K calls/day): Production-scale access
+    - **Tier 4** ($1,000 spent, 1M calls/day): Maximum throughput
 
 servers:
   - url: https://api.trythinkbase.com/v1
@@ -238,7 +240,7 @@ components:
           example: "free"
         required_tier:
           type: string
-          example: "builder"
+          example: "tier_1"
         upgrade_url:
           type: string
           example: "https://docs.trythinkbase.com/pricing"
@@ -258,7 +260,7 @@ components:
       schema:
         type: integer
         default: 50
-      description: Results per page. Maximum depends on your tier (free=100, builder=250, pro=500, enterprise=1000).
+      description: Results per page. Maximum depends on your tier (free=100, tier_1=250, tier_2=500, tier_3=1000, tier_4=1000).
 
   responses:
     Unauthorized:
@@ -274,7 +276,7 @@ components:
           schema:
             $ref: "#/components/schemas/RateLimitError"
     TierRequired:
-      description: Tier upgrade required (Builder or higher).
+      description: Tier upgrade required (Tier 1 or higher).
       content:
         application/json:
           schema:
@@ -290,15 +292,15 @@ tags:
   - name: Debates
     description: Browse and filter debates with live voting percentages.
   - name: Arguments
-    description: Access structured arguments — the reasoning behind opinions. Requires **Builder** tier.
+    description: Access structured arguments — the reasoning behind opinions. Requires **Tier 1+**.
   - name: History
-    description: View prediction percentage changes over time. Requires **Builder** tier.
+    description: View prediction percentage changes over time. Requires **Tier 1+**.
   - name: Categories
     description: List debate categories.
   - name: Trending
     description: Get currently trending debates.
   - name: Search
-    description: Search debates by keyword. Requires **Builder** tier.
+    description: Search debates by keyword. Requires **Tier 1+**.
 
 paths:
   /debates:

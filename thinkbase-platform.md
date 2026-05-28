@@ -61,7 +61,7 @@ Product documentation for the Thinkbase B2B Data API. This is the single source 
 | GET | `/v1/categories` | All categories with debate counts |
 | GET | `/v1/trending` | Top debates by trending score (open/closing_soon only) |
 
-#### Builder Tier (and above)
+#### Tier 1+ (and above)
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -203,21 +203,24 @@ curl -H "X-API-Key: tb_live_abc123..." https://api.trythinkbase.com/v1/debates
 
 **Rate limit headers** (on every authenticated response):
 ```
-X-RateLimit-Limit: 10000
-X-RateLimit-Remaining: 9842
-X-RateLimit-Used-Monthly: 45231
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 842
+X-RateLimit-Used-Monthly: 4523
 ```
 
 ### Tier System
 
-| Tier | Daily Limit | Max Page Size | Monthly Base | Per-Call Rate | Unlocks |
-|------|-------------|---------------|-------------|---------------|---------|
-| **free** | 1,000 | 100 | $0 | — | Debates, categories, trending, live percentages |
-| **builder** | 10,000 | 250 | $49 | $0.005 | + Arguments, search, historical snapshots |
-| **pro** | 100,000 | 500 | $299 | $0.003 | Higher rate limits for production use |
-| **enterprise** | 1,000,000 | 1,000 | $999 | $0.001 | Custom limits, data licensing, dedicated support |
+Usage-based pricing at **$0.003/call** with no base fees. Tiers auto-graduate based on lifetime spend.
 
-Higher tiers inherit all lower-tier permissions. Page size is clamped server-side via `clampLimit()` in `types/index.ts`.
+| Tier | Spend Threshold | Daily Limit | Max Page Size | Per-Call Rate | Unlocks |
+|------|----------------|-------------|---------------|---------------|---------|
+| **free** | $0 | 100 | 100 | $0.003 | Debates, categories, trending, live percentages |
+| **tier_1** | $5 | 1,000 | 250 | $0.003 | + Arguments, search, historical snapshots |
+| **tier_2** | $50 | 10,000 | 500 | $0.003 | Higher rate limits |
+| **tier_3** | $250 | 100,000 | 1,000 | $0.003 | Production-scale access |
+| **tier_4** | $1,000 | 1,000,000 | 1,000 | $0.003 | Maximum throughput |
+
+Higher tiers inherit all lower-tier permissions. Page size is clamped server-side via `clampLimit()` in `types/index.ts`. Tier graduation happens automatically when cumulative spend crosses a threshold (triggered by `invoice.paid` webhook).
 
 ### Middleware Pipeline
 
@@ -232,7 +235,7 @@ Request → apiKeyAuth → usageTracker → router → [requireTier per-route] �
            └─ authenticate_and_increment RPC (1 DB call: auth + rate limit)
 ```
 
-`requireTier()` is applied inside the router at individual route level (e.g., `router.get('/:slug/arguments', requireTier('builder'), handler)`), not as a top-level middleware. This means usage is logged even for requests that are subsequently rejected by tier gating.
+`requireTier()` is applied inside the router at individual route level (e.g., `router.get('/:slug/arguments', requireTier('tier_1'), handler)`), not as a top-level middleware. This means usage is logged even for requests that are subsequently rejected by tier gating.
 
 **Key design decisions:**
 - Auth + rate limiting in a single DB round-trip (atomic, no race conditions)
@@ -246,9 +249,7 @@ Request → apiKeyAuth → usageTracker → router → [requireTier per-route] �
 
 ### Overview
 
-Partners on paid tiers (builder/pro/enterprise) are billed via Stripe with two line items per subscription:
-1. **Flat-rate base fee** ($49/$299/$999 per month)
-2. **Metered per-call charge** ($0.005/$0.003/$0.001 per API call)
+All API calls are billed at a flat **$0.003/call** via a single Stripe metered price. There are no base fees. Tiers auto-graduate based on lifetime spend.
 
 Invoices are sent (not auto-charged) with 30-day payment terms (`collection_method: 'send_invoice'`).
 
@@ -258,17 +259,16 @@ Invoices are sent (not auto-charged) with 30-day payment terms (`collection_meth
 |--------|-----------|-------------|
 | Billing Meter | `mtr_...` | Counts `thinkbase_api_call` events, sum aggregation, maps by `stripe_customer_id` |
 | Product | `prod_...` | "Thinkbase Data API" |
-| Base Prices | `price_...` | Flat monthly fee per tier (not linked to meter) |
-| Metered Prices | `price_...` | Per-call charge per tier (linked to billing meter) |
-| Customer | `cus_...` | One per partner, created on paid-tier key creation |
-| Subscription | `sub_...` | Two items: base price + metered price |
+| Metered Price | `price_...` | $0.003/call, linked to billing meter (env: `STRIPE_PRICE_METERED`) |
+| Customer | `cus_...` | One per partner, created when payment method is added |
+| Subscription | `sub_...` | Single item: metered price only |
 
 ### Billing Lifecycle
 
 ```
-Admin creates paid-tier key
+Partner adds payment method
   → Stripe Customer created
-  → Stripe Subscription created (base + metered prices, send_invoice, 30d due)
+  → Stripe Subscription created (single metered price, send_invoice, 30d due)
   → stripe_customer_id + stripe_subscription_id stored on api_keys row
 
 Partner makes API calls
@@ -277,16 +277,16 @@ Partner makes API calls
   → Only fires for partners with stripe_customer_id (free tier skipped)
 
 End of billing period
-  → Stripe auto-generates invoice (base fee + metered usage)
+  → Stripe auto-generates invoice (metered usage only, no base fee)
   → Invoice sent to partner email
   → Webhook: invoice.created → we return 200 (prevents 72hr delay)
-  → Webhook: invoice.paid → logged
+  → Webhook: invoice.paid → check lifetime spend, auto-graduate tier if threshold crossed
   → Webhook: invoice.payment_failed → logged (future: suspend access)
 
-Tier change (via admin PATCH /partners/:id)
-  → Free → paid: create new Customer + Subscription
-  → Paid → free: cancel Subscription, keep Customer (audit trail)
-  → Paid → different paid: swap both base + metered prices on existing Subscription
+Auto-graduation (on invoice.paid)
+  → Sum all paid invoices for the customer
+  → If lifetime spend >= next tier threshold → update api_keys.tier + rate_limit_daily
+  → Thresholds: tier_1=$5, tier_2=$50, tier_3=$250, tier_4=$1,000
 
 Key revocation (via admin POST /partners/:id/revoke)
   → Cancel Stripe Subscription
@@ -300,7 +300,7 @@ Mounted at `POST /webhooks/stripe` with `express.raw()` for signature verificati
 | Event | Action |
 |-------|--------|
 | `invoice.created` | Return 200 immediately (prevents Stripe's 72hr finalization delay) |
-| `invoice.paid` | Log payment amount |
+| `invoice.paid` | Log payment amount, check lifetime spend, auto-graduate tier if threshold crossed |
 | `invoice.payment_failed` | Log failure |
 | `customer.subscription.updated` | Log status, warn on `past_due`/`unpaid`, sync DB on `canceled` |
 | `customer.subscription.deleted` | Clear `stripe_subscription_id` from `api_keys` |
@@ -315,17 +315,12 @@ Run once after setting `STRIPE_SECRET_KEY` in `.env`:
 cd b2b-api && npx tsx src/scripts/stripe-setup.ts
 ```
 
-Creates: Billing Meter + Product + 6 Prices (3 base + 3 metered). Outputs env vars to add:
+Creates: Billing Meter + Product + 1 metered Price ($0.003/call). Outputs env vars to add:
 
 ```
 STRIPE_METER_EVENT_NAME=thinkbase_api_call
 STRIPE_PRODUCT_ID=prod_...
-STRIPE_BASE_BUILDER=price_...
-STRIPE_BASE_PRO=price_...
-STRIPE_BASE_ENTERPRISE=price_...
-STRIPE_PRICE_BUILDER=price_...
-STRIPE_PRICE_PRO=price_...
-STRIPE_PRICE_ENTERPRISE=price_...
+STRIPE_PRICE_METERED=price_...
 ```
 
 Also add `STRIPE_WEBHOOK_SECRET=whsec_...` from the Stripe Dashboard (Developers > Webhooks).
@@ -348,13 +343,13 @@ Located under the **B2B** section in the sidebar (`admin/src/components/AdminShe
 
 **Toolbar:**
 - Search input (filters by partner name, email, key prefix)
-- Tier dropdown filter (all / free / builder / pro / enterprise)
+- Tier dropdown filter (all / free / tier_1 / tier_2 / tier_3 / tier_4)
 - "+ Create API Key" button
 
 **Table columns:**
 - Partner (name + email)
 - Key Prefix (monospace, e.g., `tb_live_abc1234...`)
-- Tier (color-coded badge: free=gray, builder=blue, pro=amber, enterprise=green)
+- Tier (color-coded badge: free=gray, tier_1=blue, tier_2=amber, tier_3=green, tier_4=purple)
 - Today (daily call count)
 - Month (monthly call count)
 - Status (Active=green, Revoked=red)
@@ -391,8 +386,8 @@ All routes require `adminAuth` middleware (Supabase JWT + email allowlist).
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/partners` | List keys (page, limit, tier, search) |
-| POST | `/partners` | Create key (generates raw key, hashes, creates Stripe billing if paid tier) |
-| PATCH | `/partners/:id` | Update partner info/tier (syncs Stripe subscription on tier change) |
+| POST | `/partners` | Create key (generates raw key, hashes, creates Stripe customer + metered subscription if payment method provided) |
+| PATCH | `/partners/:id` | Update partner info (tier auto-graduates via spend, manual override available) |
 | POST | `/partners/:id/revoke` | Revoke key (cancels Stripe subscription) |
 | GET | `/partners/:id/usage` | Usage stats for last N days (via `get_partner_usage_stats` RPC) |
 
@@ -409,8 +404,8 @@ All routes require `adminAuth` middleware (Supabase JWT + email allowlist).
 | `key_prefix` | text | — | NO | First 15 chars for display (`tb_live_xxxxxxx`) |
 | `partner_name` | text | — | NO | Company/organization name |
 | `contact_email` | text | — | NO | Partner contact email |
-| `tier` | text | `'free'` | NO | CHECK: `free`, `builder`, `pro`, `enterprise` |
-| `rate_limit_daily` | int | `1000` | NO | Max API calls per day |
+| `tier` | text | `'free'` | NO | CHECK: `free`, `tier_1`, `tier_2`, `tier_3`, `tier_4` |
+| `rate_limit_daily` | int | `100` | NO | Max API calls per day |
 | `calls_today` | int | `0` | NO | Counter (reset at UTC midnight by RPC) |
 | `calls_today_reset_at` | timestamptz | `now()` | NO | Last daily reset |
 | `calls_this_month` | int | `0` | NO | Counter (reset at month start by RPC) |
@@ -514,13 +509,8 @@ ADMIN_EMAILS=admin@trythinkbase.com
 # Stripe (required for partner billing — subscription management)
 STRIPE_SECRET_KEY=sk_live_...
 
-# Stripe price IDs (from stripe-setup script — only needed in admin-api)
-STRIPE_BASE_BUILDER=price_...
-STRIPE_BASE_PRO=price_...
-STRIPE_BASE_ENTERPRISE=price_...
-STRIPE_PRICE_BUILDER=price_...
-STRIPE_PRICE_PRO=price_...
-STRIPE_PRICE_ENTERPRISE=price_...
+# Stripe metered price (from stripe-setup script — only needed in admin-api)
+STRIPE_PRICE_METERED=price_...
 ```
 
 ---
@@ -538,7 +528,7 @@ npx tsx src/test.ts                 # run tests
 **103 assertions** covering:
 - Public endpoints (health, API info)
 - Auth middleware (missing key → 401, invalid key → 401, valid key → 200)
-- Tier gating (enterprise key accesses builder endpoints)
+- Tier gating (tier_4 key accesses tier_1 endpoints)
 - Debates list (pagination, sorting, category/status filters, response shape)
 - Single debate (slug lookup, 404 handling)
 - Arguments (pagination, sorting, 404 handling, response shape)
@@ -549,7 +539,7 @@ npx tsx src/test.ts                 # run tests
 - Rate limit headers (all three present and numeric)
 - Usage logging (middleware doesn't crash the pipeline)
 
-Test API key: `tb_test_e2e_runner_key` (enterprise tier, 100K daily limit).
+Test API key: `tb_test_e2e_runner_key` (tier_4, 1M daily limit).
 
 ---
 
@@ -590,9 +580,8 @@ Mintlify auto-generates API Reference pages from the OpenAPI spec with an intera
 | Dataset | Volume | Tier | Unique Value |
 |---------|--------|------|-------------|
 | Debates with voting percentages | 1,648 debates, 4,240 options | Free | Real-time crowd opinion on current topics |
-| Structured arguments | 40,224 arguments with position tags | Builder | The "why" behind opinions — no one else has this |
-| Prediction snapshots | 8,225 snapshots across 1,646 debates | Builder | Opinion trends over time |
+| Structured arguments | 40,224 arguments with position tags | Tier 1+ | The "why" behind opinions — no one else has this |
+| Prediction snapshots | 8,225 snapshots across 1,646 debates | Tier 1+ | Opinion trends over time |
 | Categories | 14 categories, Politics leads (22K+ debates) | Free | Organized topic taxonomy |
-| Kalshi market matches | 1,328 cross-references | Enterprise | Opinion data linked to prediction market prices |
 
 The differentiator vs. prediction markets (Polymarket, Kalshi): they capture **what** people think (probabilities). We capture **why** — structured arguments tied to positions with upvote signals.
