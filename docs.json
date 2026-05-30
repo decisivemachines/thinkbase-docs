@@ -16,13 +16,13 @@
     "links": [
       {
         "label": "Dashboard",
-        "href": "https://trythinkbase.com"
+        "href": "https://platform.trythinkbase.com"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Get API Key",
-      "href": "https://trythinkbase.com/partners"
+      "href": "https://platform.trythinkbase.com"
     }
   },
   "navigation": {

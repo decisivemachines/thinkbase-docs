@@ -31,7 +31,7 @@ components:
       type: apiKey
       in: header
       name: X-API-Key
-      description: Your Thinkbase API key. Get one at https://trythinkbase.com/partners.
+      description: Your Thinkbase API key. Get one at https://platform.trythinkbase.com.
       x-default: "your-api-key-here"
 
   schemas:
